@@ -17,18 +17,29 @@ io.on('connection', (socket) => {
     
     let javaProcess = null;
 
-    socket.on('run-code', (code) => {
+    socket.on('run-code', (data) => {
+        // Support new object format { code, args } and legacy string format
+        let code = "";
+        let argsString = "";
+
+        if (typeof data === 'string') {
+            code = data;
+        } else {
+            code = data.code;
+            argsString = data.args || "";
+        }
+
         // SAFETY WARNING: This writes and executes arbitrary code on your machine.
         // DO NOT deploy this to a public server without sandboxing (e.g., Docker).
         
         const fileName = `Main_${socket.id}.java`;
-        const className = `Main_${socket.id}`;
         
-        // We need to rename the public class to match the filename dynamically
-        // or ensure the user only writes 'class Main'. 
-        // For simplicity, we'll force the user to use 'public class Main' and we rename the file to Main.java
-        // inside a unique directory to prevent conflicts.
-        
+        // Parse args string into array, respecting quotes
+        // Regex matches non-whitespace sequences OR quoted sequences
+        const argsArray = argsString.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+        // Remove surrounding quotes from args
+        const finalArgs = argsArray.map(arg => arg.replace(/^"|"$/g, ''));
+
         const runDir = path.join(__dirname, 'temp', socket.id);
         
         if (!fs.existsSync(runDir)){
@@ -59,8 +70,8 @@ io.on('connection', (socket) => {
                 } else {
                     socket.emit('output', "Running...\n-------------------------\n");
                     
-                    // Run: java Main
-                    javaProcess = spawn('java', ['Main'], { cwd: runDir });
+                    // Run: java Main [args]
+                    javaProcess = spawn('java', ['Main', ...finalArgs], { cwd: runDir });
 
                     javaProcess.stdout.on('data', (data) => {
                         socket.emit('output', data.toString());

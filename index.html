@@ -373,6 +373,21 @@
             border: 1px solid var(--theme-comment);
             outline: none;
         }
+
+        /* ARGS INPUT STYLE */
+        #args-input {
+            background-color: var(--theme-bg-storm);
+            color: var(--theme-fg);
+            border: 1px solid var(--theme-comment);
+            padding: 10px;
+            border-radius: 5px;
+            outline: none;
+            width: 180px;
+            font-family: inherit;
+        }
+        #args-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
         
         /* AUTO RUN TOGGLE STYLE */
         .toggle-wrapper {
@@ -586,6 +601,13 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
         
+        if (args.length > 0) {
+            System.out.println("Arguments received:");
+            for (String arg : args) {
+                System.out.println("- " + arg);
+            }
+        }
+        
         Scanner scanner = new Scanner(System.in);
         System.out.print("What is your name? ");
         
@@ -638,6 +660,10 @@ public class Main {
         </div>
 
         <button class="btn-paste" onclick="pasteCode()">Paste</button>
+        
+        <!-- ARGS INPUT -->
+        <input type="text" id="args-input" placeholder="Args (e.g. 10 &quot;test&quot;)">
+
         <button class="btn-run" onclick="runCode()">Run</button>
         
         <!-- AUTO RUN TOGGLE -->
@@ -795,6 +821,7 @@ public class Main {
         const folderUploadInput = document.getElementById('folder-upload');
         const archiveUploadInput = document.getElementById('archive-upload');
         const autoRunToggle = document.getElementById('auto-run-toggle');
+        const argsInput = document.getElementById('args-input');
         
         // Navigation Elements
         const btnPrev = document.getElementById('btn-prev');
@@ -896,7 +923,11 @@ public class Main {
             const utf8Force = ' try { System.setOut(new java.io.PrintStream(System.out, true, "UTF-8")); } catch (java.io.UnsupportedEncodingException e) {} ';
             processedCode = processedCode.replace(/(public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/, '$1' + utf8Force);
 
-            socket.emit('run-code', processedCode);
+            // Fetch Args
+            const args = argsInput.value;
+
+            // Send object instead of string
+            socket.emit('run-code', { code: processedCode, args: args });
             terminalInput.focus();
         }
 
@@ -932,6 +963,7 @@ public class Main {
             // Reset Title/Desc
             snippetTitle.value = '';
             snippetDesc.value = '';
+            argsInput.value = '';
             autoResizeDesc();
             
             // Clear PDF append input
@@ -1493,5 +1525,4 @@ public class Main {
         }
     </script>
 </body>
-
 </html>
