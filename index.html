@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nei's Code Snapshot Tool</title>
+    <!-- Syntax Highlighting - Base Theme -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        /* --- THEME VARIABLES (Default: Tokyo Night) --- */
+        :root {
+            --theme-bg: #1a1b26;
+            --theme-bg-storm: #24283b;
+            --theme-fg: #c0caf5;
+            --theme-comment: #565f89;
+            --theme-cyan: #7dcfff;
+            --theme-blue: #7aa2f7;
+            --theme-purple: #bb9af7;
+            --theme-green: #9ece6a;
+            --theme-orange: #ff9e64;
+            --theme-red: #f7768e;
+            --theme-yellow: #e0af68;
+            --theme-gradient: linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--theme-bg); 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            transition: background-color 0.3s ease;
+        }
+
+        h1 { 
+            color: var(--theme-fg); 
+        }
+
+        /* The Main Capture Container (Carbon Style) */
+        #capture-container {
+            /* Dynamic Gradient */
+            background: var(--theme-gradient);
+            padding: 40px;
+            padding-bottom: 50px; /* Extra space for watermark */
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            /* WIDER WIDTH */
+            width: 1000px;
+            max-width: 95%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: background 0.3s ease;
+            position: relative; /* For absolute positioning of watermark */
+        }
+
+        /* Watermark Styling */
+        .watermark {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* --- NEW: TITLE & DESCRIPTION BOX --- */
+        .snippet-header {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        /* Flex container for Nav + Title */
+        .header-top-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        #snippet-title {
+            background: transparent;
+            border: none;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: white; 
+            outline: none;
+            flex-grow: 1; /* Takes remaining space */
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #snippet-desc {
+            background: transparent;
+            border: none;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            outline: none;
+            width: 100%;
+            resize: none; 
+            overflow: hidden;
+            min-height: 24px;
+            line-height: 1.5;
+            white-space: pre-wrap; /* Preserves newlines we add */
+        }
+        
+        #snippet-title::placeholder,
+        #snippet-desc::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+            font-style: italic;
+        }
+
+        /* NAV BUTTONS FOR EXERCISES (Styled Small & Minimal) */
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-nav {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none; /* Hidden by default */
+            transition: background 0.2s;
+        }
+        
+        .btn-nav:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        #exercise-counter {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: bold;
+            display: none;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* --- EDITOR & TERMINAL STYLING --- */
+        
+        /* Code Editor Area */
+        .editor-wrapper {
+            background-color: var(--theme-bg-storm); 
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: background-color 0.3s ease;
+        }
+
+        /* We stack textarea and pre for editing + highlighting */
+        #code-input, #code-display {
+            width: 100%;
+            height: 300px;
+            margin: 0;
+            padding: 20px;
+            border: none;
+            /* Font stack supporting Unicode symbols */
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Segoe UI Symbol', 'Noto Color Emoji', monospace;
+            font-size: 14px;
+            line-height: 1.6; /* Slightly increased for readability */
+            box-sizing: border-box;
+            white-space: pre;
+            color: var(--theme-fg); 
+        }
+
+        #code-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: transparent;
+            color: transparent;
+            caret-color: var(--theme-fg);
+            z-index: 2;
+            resize: none;
+            outline: none;
+        }
+
+        #code-display {
+            position: relative;
+            z-index: 1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        /* --- DYNAMIC SYNTAX HIGHLIGHTING OVERRIDES --- */
+        /* Override PrismJS Default Backgrounds to Transparent */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            color: var(--theme-fg) !important;
+            background: transparent !important;
+            text-shadow: none !important;
+            font-family: inherit !important;
+            font-size: inherit !important;
+            line-height: inherit !important;
+        }
+
+        /* Comments */
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+            color: var(--theme-comment) !important;
+            font-style: italic;
+        }
+
+        /* Punctuation */
+        .token.punctuation {
+            color: var(--theme-cyan) !important; /* Often Cyan or FG */
+            opacity: 0.8;
+        }
+
+        /* Namespace */
+        .token.namespace {
+            opacity: .7;
+        }
+
+        /* Properties, Tags, Constants, Symbols */
+        .token.property,
+        .token.tag,
+        .token.boolean,
+        .token.number,
+        .token.constant,
+        .token.symbol,
+        .token.deleted {
+            color: var(--theme-orange) !important;
+        }
+
+        /* Selectors, Attrs, Strings, Chars */
+        .token.selector,
+        .token.attr-name,
+        .token.string,
+        .token.char,
+        .token.builtin,
+        .token.inserted {
+            color: var(--theme-green) !important;
+        }
+
+        /* Operators, Entities, URLs */
+        .token.operator,
+        .token.entity,
+        .token.url,
+        .language-css .token.string,
+        .style .token.string {
+            color: var(--theme-cyan) !important;
+        }
+
+        /* Keywords, At-rules */
+        .token.atrule,
+        .token.attr-value,
+        .token.keyword {
+            color: var(--theme-purple) !important;
+            font-style: italic; 
+        }
+
+        /* Functions, Class Names */
+        .token.function,
+        .token.class-name {
+            color: var(--theme-blue) !important;
+        }
+
+        /* Regex, Important, Variables */
+        .token.regex,
+        .token.important,
+        .token.variable {
+            color: var(--theme-yellow) !important;
+        }
+
+        /* Terminal Area */
+        .terminal-wrapper {
+            background-color: var(--theme-bg-storm);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Segoe UI Symbol', 'Noto Color Emoji', monospace;
+            color: var(--theme-fg);
+            height: 200px;
+            overflow-y: auto;
+            border: 2px solid var(--theme-comment); /* Use comment color for border usually looks good */
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        #terminal-output {
+            white-space: pre-wrap;
+            flex-grow: 1;
+        }
+        
+        .user-echo {
+            color: var(--theme-cyan);
+            font-weight: bold;
+        }
+
+        .input-line {
+            display: flex;
+            margin-top: 5px;
+        }
+
+        .prompt { 
+            color: var(--theme-purple); 
+            margin-right: 5px; 
+        }
+
+        #terminal-input {
+            background: transparent;
+            border: none;
+            color: var(--theme-cyan);
+            font-family: inherit;
+            flex-grow: 1;
+            outline: none;
+        }
+
+        /* Custom Scrollbar for Webkit */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--theme-bg); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--theme-bg-storm); 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--theme-comment); 
+        }
+
+        /* Controls outside capture area */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button, select {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            font-weight: bold;
+            font-family: inherit;
+        }
+
+        select {
+            background-color: var(--theme-bg-storm);
+            color: var(--theme-fg);
+            border: 1px solid var(--theme-comment);
+            outline: none;
+        }
+        
+        /* AUTO RUN TOGGLE STYLE */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--theme-fg);
+            font-weight: bold;
+            font-size: 14px;
+            background-color: var(--theme-bg-storm);
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid var(--theme-comment);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-wrapper input {
+            margin: 0;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--theme-green); /* Use theme color for checkbox */
+        }
+        
+        /* New PDF Upload Styling */
+        .file-upload-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--theme-bg-storm);
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px dashed var(--theme-comment);
+        }
+        
+        .file-upload-wrapper label {
+            color: var(--theme-fg);
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        input[type="file"] {
+            color: var(--theme-fg);
+            font-size: 14px;
+            max-width: 200px;
+        }
+        
+        /* File input specific coloring */
+        input[type="file"]::file-selector-button {
+            background-color: var(--theme-blue);
+            color: var(--theme-bg);
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        input[type="file"]::file-selector-button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:active { transform: scale(0.98); }
+
+        .btn-run { 
+            background-color: var(--theme-blue); 
+            color: var(--theme-bg); /* Contrast text */
+        }
+        .btn-run:hover { filter: brightness(1.2); }
+
+        .btn-reset {
+            background-color: var(--theme-red);
+            color: var(--theme-bg);
+        }
+        .btn-reset:hover { filter: brightness(1.2); }
+
+        /* PASTE BUTTON STYLE */
+        .btn-paste {
+            background-color: var(--theme-green); 
+            color: var(--theme-bg);
+        }
+        .btn-paste:hover { filter: brightness(1.2); }
+
+        /* ADD TO REPORT BUTTON STYLE */
+        .btn-add-report {
+            background-color: var(--theme-purple);
+            color: var(--theme-bg);
+        }
+        .btn-add-report:hover { filter: brightness(1.2); }
+
+        /* Dropdown Styling */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .btn-download-trigger, .btn-import-trigger, .btn-reset-trigger {
+            background-color: var(--theme-bg-storm); 
+            color: var(--theme-fg); 
+            border: 1px solid var(--theme-comment);
+        }
+        
+        /* Specific override for reset button color in dropdown */
+        .btn-reset-trigger {
+            background-color: var(--theme-red);
+            color: var(--theme-bg);
+            border: none;
+        }
+
+        .btn-download-trigger:hover, .btn-import-trigger:hover { background-color: var(--theme-comment); }
+        .btn-reset-trigger:hover { filter: brightness(1.2); }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            bottom: 100%; /* Show above the button */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--theme-bg-storm);
+            min-width: 200px; /* Slightly wider for import options */
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border: 1px solid var(--theme-comment);
+            border-radius: 5px;
+            z-index: 100;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+
+        .dropdown-content button {
+            color: var(--theme-fg);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border-radius: 0;
+            font-size: 14px;
+        }
+
+        .dropdown-content button:hover {
+            background-color: var(--theme-comment);
+        }
+
+        /* Replaced hover with click-toggle class */
+        .show {
+            display: block;
+        }
+        
+        /* Toast notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--theme-green);
+            color: var(--theme-bg);
+            text-align: center;
+            border-radius: 4px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Code Snapshot Tool</h1>
+
+    <!-- This entire div gets screenshotted -->
+    <div id="capture-container">
+        
+        <!-- NEW HEADER SECTION -->
+        <div class="snippet-header">
+            <!-- Top Row: Nav Controls + Title -->
+            <div class="header-top-row">
+                <div class="nav-controls">
+                    <button id="btn-prev" class="btn-nav" onclick="prevExercise()">&#8592;</button>
+                    <span id="exercise-counter">0/0</span>
+                    <button id="btn-next" class="btn-nav" onclick="nextExercise()">&#8594;</button>
+                </div>
+                <input type="text" id="snippet-title" placeholder="Untitled Snippet" value="Java Experiment">
+            </div>
+            
+            <textarea id="snippet-desc" placeholder="Add a description... (can be multi-line)">Testing standard input via Scanner.
+This problem demonstrates how to read user input.</textarea>
+        </div>
+
+        <div class="editor-wrapper">
+            <!-- Syntax Highlighted Layer -->
+            <pre id="code-display" aria-hidden="true"><code id="code-highlight" class="language-java"></code></pre>
+            <!-- Editable Layer -->
+            <textarea id="code-input" spellcheck="false">import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+        
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("What is your name? ");
+        
+        if (scanner.hasNextLine()) {
+            String name = scanner.nextLine();
+            System.out.println("Nice to meet you, " + name + "!");
+        }
+    }
+}</textarea>
+        </div>
+
+        <div class="terminal-wrapper" id="terminal-wrapper">
+            <div id="terminal-output">Ready...</div>
+            <div class="input-line">
+                <span class="prompt">></span>
+                <input type="text" id="terminal-input" autocomplete="off" placeholder="Type here for scanner input...">
+            </div>
+        </div>
+
+        <!-- WATERMARK -->
+        <div class="watermark">© Neizan</div>
+    </div>
+
+    <div class="controls">
+        <select id="theme-select" onchange="changeTheme(this.value)">
+            <option value="tokyoNight">Tokyo Night</option>
+            <option value="nord">Nord</option>
+            <option value="dracula">Dracula</option>
+            <option value="forest">Forest</option>
+            <option value="monokai">Monokai</option>
+        </select>
+        
+        <!-- HIDDEN FILE UPLOADS -->
+        <input type="file" id="exercise-upload" accept="application/pdf" style="display:none">
+        <input type="file" id="pdf-upload" accept="application/pdf" style="display:none">
+        <!-- New Folder Upload Input -->
+        <input type="file" id="folder-upload" webkitdirectory directory multiple style="display:none">
+        <!-- New Archive Upload Input -->
+        <input type="file" id="archive-upload" accept=".zip" style="display:none">
+
+        <!-- IMPORT DROPDOWN -->
+        <div class="dropdown">
+            <button class="btn-import-trigger" onclick="toggleImportDropdown()">Import ▼</button>
+            <div id="importDropdown" class="dropdown-content">
+                <button onclick="document.getElementById('exercise-upload').click()">Import Exercises (PDF)</button>
+                <button onclick="document.getElementById('folder-upload').click()">Import Java Project (Folder)</button>
+                <button onclick="document.getElementById('archive-upload').click()">Import Java Project (.zip)</button>
+                <button onclick="document.getElementById('pdf-upload').click()">Select PDF to Append</button>
+            </div>
+        </div>
+
+        <button class="btn-paste" onclick="pasteCode()">Paste</button>
+        <button class="btn-run" onclick="runCode()">Run</button>
+        
+        <!-- AUTO RUN TOGGLE -->
+        <label class="toggle-wrapper" title="Run code automatically when switching exercises">
+            <input type="checkbox" id="auto-run-toggle" checked> Auto-Run
+        </label>
+
+        <button class="btn-add-report" onclick="addToReport()" title="Snapshot and add to final PDF">Add to Report (Ctrl+Enter)</button>
+        
+        <!-- RESET DROPDOWN -->
+        <div class="dropdown">
+            <button class="btn-reset btn-reset-trigger" onclick="toggleResetDropdown()">Reset ▼</button>
+            <div id="resetDropdown" class="dropdown-content">
+                <button onclick="resetTerminalOnly()">Terminal Only</button>
+                <button onclick="resetAll()">Everything</button>
+                <button onclick="clearExercises()">Clear Exercises</button>
+                <button onclick="clearReport()">Clear Report Pages</button>
+            </div>
+        </div>
+
+        <!-- DOWNLOAD DROPDOWN -->
+        <div class="dropdown">
+            <button class="btn-download-trigger" onclick="toggleDropdown()">Download ▼</button>
+            <div id="myDropdown" class="dropdown-content">
+                <button onclick="downloadImage()">PNG Image (Current)</button>
+                <button onclick="downloadPDF()">PDF Document (Current)</button>
+                <button onclick="downloadFullReport()" id="btn-full-report">Download Full Report (0)</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast">Snapshot added to report!</div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- pdf-lib for Advanced PDF manipulation (Merging) -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- pdf.js for Parsing Text from uploaded PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- JSZip for Archive Handling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        // --- 0. Theme Logic ---
+        const themes = {
+            tokyoNight: {
+                '--theme-bg': '#1a1b26',
+                '--theme-bg-storm': '#24283b',
+                '--theme-fg': '#c0caf5',
+                '--theme-comment': '#565f89',
+                '--theme-cyan': '#7dcfff',
+                '--theme-blue': '#7aa2f7',
+                '--theme-purple': '#bb9af7',
+                '--theme-green': '#9ece6a',
+                '--theme-orange': '#ff9e64',
+                '--theme-red': '#f7768e',
+                '--theme-yellow': '#e0af68',
+                '--theme-gradient': 'linear-gradient(135deg, #7aa2f7 0%, #bb9af7 100%)'
+            },
+            nord: {
+                '--theme-bg': '#2e3440',
+                '--theme-bg-storm': '#3b4252',
+                '--theme-fg': '#d8dee9',
+                '--theme-comment': '#4c566a',
+                '--theme-cyan': '#88c0d0',
+                '--theme-blue': '#81a1c1',
+                '--theme-purple': '#b48ead',
+                '--theme-green': '#a3be8c',
+                '--theme-orange': '#d08770',
+                '--theme-red': '#bf616a',
+                '--theme-yellow': '#ebcb8b',
+                '--theme-gradient': 'linear-gradient(135deg, #5e81ac 0%, #88c0d0 100%)'
+            },
+            dracula: {
+                '--theme-bg': '#282a36',
+                '--theme-bg-storm': '#44475a',
+                '--theme-fg': '#f8f8f2',
+                '--theme-comment': '#6272a4',
+                '--theme-cyan': '#8be9fd',
+                '--theme-blue': '#bd93f9', 
+                '--theme-purple': '#ff79c6',
+                '--theme-green': '#50fa7b',
+                '--theme-orange': '#ffb86c',
+                '--theme-red': '#ff5555',
+                '--theme-yellow': '#f1fa8c',
+                '--theme-gradient': 'linear-gradient(135deg, #bd93f9 0%, #ff79c6 100%)'
+            },
+            forest: {
+                '--theme-bg': '#1e2820',
+                '--theme-bg-storm': '#2b382d',
+                '--theme-fg': '#d4e0d4',
+                '--theme-comment': '#687d68',
+                '--theme-cyan': '#8abeb7',
+                '--theme-blue': '#81a2be',
+                '--theme-purple': '#b294bb',
+                '--theme-green': '#b5bd68',
+                '--theme-orange': '#de935f',
+                '--theme-red': '#cc6666',
+                '--theme-yellow': '#f0c674',
+                '--theme-gradient': 'linear-gradient(135deg, #b5bd68 0%, #2b382d 100%)'
+            },
+            monokai: {
+                '--theme-bg': '#272822',
+                '--theme-bg-storm': '#3e3d32',
+                '--theme-fg': '#f8f8f2',
+                '--theme-comment': '#75715e',
+                '--theme-cyan': '#66d9ef',
+                '--theme-blue': '#66d9ef', 
+                '--theme-purple': '#ae81ff',
+                '--theme-green': '#a6e22e',
+                '--theme-orange': '#fd971f',
+                '--theme-red': '#f92672',
+                '--theme-yellow': '#e6db74',
+                '--theme-gradient': 'linear-gradient(135deg, #f92672 0%, #fd971f 100%)'
+            }
+        };
+
+        function changeTheme(themeName) {
+            const theme = themes[themeName];
+            if (!theme) return;
+            const root = document.documentElement;
+            for (const [property, value] of Object.entries(theme)) {
+                root.style.setProperty(property, value);
+            }
+        }
+
+        // --- Standard Logic ---
+
+        // Socket IO initialization
+        let socket;
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io();
+            } else {
+                throw new Error("Socket.io library not found");
+            }
+        } catch (e) {
+            console.error("Socket.io failed to initialize.");
+        }
+
+        const codeInput = document.getElementById('code-input');
+        const codeDisplay = document.getElementById('code-display');
+        const codeHighlight = document.getElementById('code-highlight');
+        const terminalOutput = document.getElementById('terminal-output');
+        const terminalInput = document.getElementById('terminal-input');
+        const terminalWrapper = document.getElementById('terminal-wrapper');
+        const snippetDesc = document.getElementById('snippet-desc');
+        const snippetTitle = document.getElementById('snippet-title');
+        const pdfUploadInput = document.getElementById('pdf-upload');
+        const exerciseUploadInput = document.getElementById('exercise-upload');
+        const folderUploadInput = document.getElementById('folder-upload');
+        const archiveUploadInput = document.getElementById('archive-upload');
+        const autoRunToggle = document.getElementById('auto-run-toggle');
+        
+        // Navigation Elements
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const exerciseCounter = document.getElementById('exercise-counter');
+        const btnFullReport = document.getElementById('btn-full-report');
+        
+        // Exercises Array: { title, description, code }
+        let exercises = [];
+        // Store orphaned code that was uploaded before PDF (Key: lowercased title, Value: code)
+        let orphanCodeMap = new Map();
+        // Store generated images for the final report
+        let reportImages = [];
+        
+        let currentExerciseIndex = -1;
+
+        // --- Auto-Resize Description ---
+        function autoResizeDesc() {
+            snippetDesc.style.height = 'auto';
+            snippetDesc.style.height = snippetDesc.scrollHeight + 'px';
+        }
+        snippetDesc.addEventListener('input', autoResizeDesc);
+        window.addEventListener('load', autoResizeDesc);
+        
+        // ADDED: Fix for invisible text on load - sync textarea content to highlighter immediately
+        window.addEventListener('load', updateHighlight);
+
+        // --- PERSISTENT EDITS LOGIC ---
+        // Save changes to current exercise object when user types
+        function saveCurrentExerciseState() {
+            if (currentExerciseIndex >= 0 && currentExerciseIndex < exercises.length) {
+                exercises[currentExerciseIndex].title = snippetTitle.value;
+                exercises[currentExerciseIndex].description = snippetDesc.value;
+                exercises[currentExerciseIndex].code = codeInput.value; // SAVE CODE
+            }
+        }
+        snippetTitle.addEventListener('input', saveCurrentExerciseState);
+        snippetDesc.addEventListener('input', saveCurrentExerciseState);
+        codeInput.addEventListener('input', () => { // Save code on input
+            saveCurrentExerciseState();
+            updateHighlight();
+        });
+
+
+        // --- Dropdown Logic ---
+        function toggleDropdown() {
+            document.getElementById("myDropdown").classList.toggle("show");
+        }
+        
+        function toggleResetDropdown() {
+            document.getElementById("resetDropdown").classList.toggle("show");
+        }
+
+        function toggleImportDropdown() {
+            document.getElementById("importDropdown").classList.toggle("show");
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.matches('.btn-download-trigger') && 
+                !event.target.matches('.btn-reset-trigger') &&
+                !event.target.matches('.btn-import-trigger')) {
+                
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        // --- 1. Syntax Highlighting Sync ---
+        function updateHighlight() {
+            let text = codeInput.value;
+            if(text[text.length-1] == "\n") text += " "; 
+            codeHighlight.textContent = text;
+            Prism.highlightElement(codeHighlight);
+        }
+        codeInput.addEventListener('scroll', () => {
+            codeDisplay.scrollTop = codeInput.scrollTop;
+            codeDisplay.scrollLeft = codeInput.scrollLeft;
+        });
+        // Highlight updated in input listener above
+
+        // --- 2. Socket Logic ---
+        function runCode() {
+            if (!socket) {
+                alert("Cannot run code: Not connected to backend server.");
+                return;
+            }
+            terminalOutput.appendChild(document.createTextNode("Processing and sending to server...\n"));
+
+            let processedCode = codeInput.value;
+            processedCode = processedCode.replace(/\/\*[\s\S]*?Templates\/Licenses\/license-default\.txt[\s\S]*?\*\/\s*/g, "");
+            processedCode = processedCode.replace(/^\s*package\s+[\w.]+;\s*/gm, "");
+            processedCode = processedCode.replace(/public\s+class\s+(\w+)/, "public class Main");
+            
+            const utf8Force = ' try { System.setOut(new java.io.PrintStream(System.out, true, "UTF-8")); } catch (java.io.UnsupportedEncodingException e) {} ';
+            processedCode = processedCode.replace(/(public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/, '$1' + utf8Force);
+
+            socket.emit('run-code', processedCode);
+            terminalInput.focus();
+        }
+
+        async function pasteCode() {
+            try {
+                const text = await navigator.clipboard.readText();
+                codeInput.value = text;
+                updateHighlight();
+                saveCurrentExerciseState(); // Save pasted code
+            } catch (err) {
+                console.error('Failed to read clipboard:', err);
+                alert('Could not paste from clipboard.');
+            }
+        }
+
+        // --- 3. Reset Logic ---
+        function resetTerminalOnly() {
+            terminalOutput.textContent = 'Ready...';
+            terminalInput.value = '';
+        }
+
+        function resetAll() {
+            resetTerminalOnly();
+            
+            // Reset Code
+            codeInput.value = `import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`;
+            updateHighlight();
+            
+            // Clear exercises explicitly
+            clearExercises();
+            clearReport();
+            
+            // Reset Title/Desc
+            snippetTitle.value = '';
+            snippetDesc.value = '';
+            autoResizeDesc();
+            
+            // Clear PDF append input
+            if(pdfUploadInput) pdfUploadInput.value = '';
+        }
+
+        function clearExercises() {
+            exercises = [];
+            orphanCodeMap.clear();
+            currentExerciseIndex = -1;
+            document.querySelectorAll('.btn-nav').forEach(el => el.style.display = 'none');
+            exerciseCounter.style.display = 'none';
+            snippetTitle.value = '';
+            snippetDesc.value = '';
+            autoResizeDesc();
+            // Clear the file input so change event triggers again if same file selected
+            exerciseUploadInput.value = '';
+            folderUploadInput.value = '';
+            archiveUploadInput.value = '';
+            
+            terminalOutput.appendChild(document.createTextNode("\nExercises cleared.\n"));
+        }
+        
+        function clearReport() {
+            reportImages = [];
+            updateReportCounter();
+            terminalOutput.appendChild(document.createTextNode("\nReport pages cleared.\n"));
+        }
+
+        if (socket) {
+            socket.on('output', (data) => {
+                terminalOutput.appendChild(document.createTextNode(data));
+                terminalWrapper.scrollTop = terminalWrapper.scrollHeight;
+            });
+        }
+
+        terminalInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const text = terminalInput.value;
+                const inputSpan = document.createElement('span');
+                inputSpan.className = 'user-echo';
+                inputSpan.textContent = text + '\n';
+                terminalOutput.appendChild(inputSpan);
+                if (socket) socket.emit('input', text);
+                terminalInput.value = '';
+                terminalWrapper.scrollTop = terminalWrapper.scrollHeight;
+            }
+        });
+        
+        document.addEventListener('keydown', async (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                // Await report generation, if successful, move to next
+                const success = await addToReport();
+                if (success) {
+                    nextExercise();
+                }
+            }
+        });
+
+        // --- ARCHIVE IMPORT LOGIC (.zip) ---
+        archiveUploadInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            terminalOutput.appendChild(document.createTextNode(`\nReading archive: ${file.name}...\n`));
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const exerciseFilePattern = /Ejercicio\d+_\d+_\d+\.java$/i;
+                let matchesFound = 0;
+
+                // Iterate through all files in zip
+                for (const relativePath in zip.files) {
+                    const zipEntry = zip.files[relativePath];
+                    
+                    if (!zipEntry.dir && exerciseFilePattern.test(zipEntry.name)) {
+                        // Extract Title from filename (handles paths)
+                        // path/to/Ejercicio6_1_6.java -> Ejercicio6_1_6
+                        const fileName = relativePath.split('/').pop();
+                        const titleMatch = fileName.match(/(Ejercicio\d+_\d+_\d+)/i);
+
+                        if (titleMatch) {
+                            const title = titleMatch[1];
+                            const content = await zipEntry.async("string");
+                            
+                            processImportedCode(title, content);
+                            matchesFound++;
+                        }
+                    }
+                }
+                
+                finalizeCodeImport(matchesFound, "Archive");
+
+            } catch (err) {
+                console.error("Archive Error:", err);
+                terminalOutput.appendChild(document.createTextNode(`Error reading archive: ${err.message}\n`));
+            }
+            archiveUploadInput.value = '';
+        });
+
+        // --- FOLDER IMPORT LOGIC ---
+        folderUploadInput.addEventListener('change', async function(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            terminalOutput.appendChild(document.createTextNode("\nScanning project folder(s)...\n"));
+
+            const exerciseFilePattern = /Ejercicio\d+_\d+_\d+\.java$/i;
+            let matchesFound = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (exerciseFilePattern.test(file.name)) {
+                    const titleMatch = file.name.match(/(Ejercicio\d+_\d+_\d+)/i);
+                    
+                    if (titleMatch) {
+                        const title = titleMatch[1];
+                        const content = await file.text();
+                        
+                        processImportedCode(title, content);
+                        matchesFound++;
+                    }
+                }
+            }
+
+            finalizeCodeImport(matchesFound, "Folder");
+            folderUploadInput.value = '';
+        });
+
+        // --- HELPER: Process Imported Code ---
+        function processImportedCode(title, content) {
+            // 1. Try to find matching exercise in PDF list
+            const exIndex = exercises.findIndex(ex => ex.title.toLowerCase() === title.toLowerCase());
+            
+            if (exIndex !== -1) {
+                // Sync code with existing PDF exercise
+                exercises[exIndex].code = content;
+                terminalOutput.appendChild(document.createTextNode(`Synced: ${title}\n`));
+            } else {
+                // 2. Store in orphan map for later syncing
+                orphanCodeMap.set(title.toLowerCase(), { title, content });
+            }
+        }
+
+        // --- HELPER: Finalize Import ---
+        function finalizeCodeImport(count, source) {
+            if (count > 0) {
+                terminalOutput.appendChild(document.createTextNode(`\nProcessed ${count} Java files from ${source}.\n`));
+                
+                // If we are currently viewing an exercise, reload it to reflect changes
+                if (currentExerciseIndex !== -1) {
+                    loadExercise(currentExerciseIndex);
+                } 
+                // If no PDF exercises loaded yet, try to load first orphaned one temporarily
+                else if (exercises.length === 0 && orphanCodeMap.size > 0) {
+                    const firstOrphan = orphanCodeMap.values().next().value;
+                    codeInput.value = firstOrphan.content;
+                    snippetTitle.value = firstOrphan.title;
+                    snippetDesc.value = "Imported source code (No PDF instructions yet).";
+                    updateHighlight();
+                    terminalOutput.appendChild(document.createTextNode(`\nLoaded ${firstOrphan.title} into editor.\n`));
+                }
+            } else {
+                terminalOutput.appendChild(document.createTextNode(`No matching 'EjercicioX_Y_Z.java' files found in ${source}.\n`));
+            }
+        }
+
+        // --- PDF Parsing Logic (Exercises) ---
+        
+        // Setup pdf.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        exerciseUploadInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            terminalOutput.appendChild(document.createTextNode(`\nReading PDF: ${file.name}...\n`));
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                let fullText = "";
+
+                // Extract text from all pages
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    // Simple concatenation
+                    const pageText = textContent.items.map(item => item.str).join(" ");
+                    fullText += pageText + "\n"; 
+                }
+
+                parseExercises(fullText);
+
+            } catch (err) {
+                console.error("Error reading PDF", err);
+                terminalOutput.appendChild(document.createTextNode(`Error reading PDF: ${err.message}\n`));
+            }
+        });
+
+        function parseExercises(text) {
+            // ... (Same parsing logic as before) ...
+            let cleanText = text;
+            cleanText = cleanText.replace(/Arrays\s+UNIDAD\s+\d+/gi, " ");
+            cleanText = cleanText.replace(/Arrays\s+UN\s*IDAD\s+\d+(\s+\d+)?/gi, "");
+            cleanText = cleanText.replace(/E\s+jercicio/gi, "Ejercicio");
+            cleanText = cleanText.replace(/E\s+jemplo/gi, "Ejemplo");
+            
+            const brokenWords = [
+                "C rea", "p rograma", "m uestre", "c olumnas", "f ilas", 
+                "n úmeros", "t riángulo", "u n", "q ue", "l os", "u na",
+                "r ealice", "i ndicamos", "p antalla", "c orrespondiente"
+            ];
+            
+            brokenWords.forEach(pattern => {
+                const parts = pattern.split(' ');
+                if (parts.length === 2) {
+                    const regex = new RegExp(parts[0] + "\\s+" + parts[1], "gi");
+                    cleanText = cleanText.replace(regex, parts.join(''));
+                }
+            });
+
+            // UPDATED REGEX: Case-sensitive "Ejercicio" and only match if not part of another word
+            const titleRegex = /Ejercicio\s*\d+(?:[\s_\.-]*\d+)*/g;
+            
+            const matches = [];
+            let match;
+            while ((match = titleRegex.exec(cleanText)) !== null) {
+                matches.push({
+                    title: match[0],
+                    index: match.index
+                });
+            }
+
+            if (matches.length === 0) {
+                 terminalOutput.appendChild(document.createTextNode(`No exercises found matching format 'Ejercicio...'.\n`));
+                 return;
+            }
+
+            exercises = [];
+            for (let i = 0; i < matches.length; i++) {
+                const current = matches[i];
+                const next = matches[i+1];
+                
+                const startDesc = current.index + current.title.length;
+                const endDesc = next ? next.index : cleanText.length;
+                let description = cleanText.substring(startDesc, endDesc).trim();
+                
+                description = description.replace(/^[\s\.:-]+/, "");
+                const ejemploIndex = description.indexOf("Ejemplo");
+                if (ejemploIndex !== -1) {
+                    description = description.substring(0, ejemploIndex);
+                }
+
+                description = description.replace(/\s+/g, " ");
+                description = description.replace(/;\s*/g, ";\n");
+                description = description.replace(/:\s*/g, ":\n");
+                description = description.replace(/([^\d])\.\s+/g, "$1.\n");
+
+                const normalizedTitle = current.title.replace(/\s+/g, "");
+
+                // Check for orphaned code
+                let preloadedCode = null;
+                if (orphanCodeMap.has(normalizedTitle.toLowerCase())) {
+                    preloadedCode = orphanCodeMap.get(normalizedTitle.toLowerCase()).content;
+                }
+
+                exercises.push({
+                    title: normalizedTitle,
+                    description: description,
+                    code: preloadedCode // Use orphaned code if available
+                });
+            }
+
+            terminalOutput.appendChild(document.createTextNode(`Successfully extracted ${exercises.length} exercises.\n`));
+            
+            if (orphanCodeMap.size > 0) {
+                const matchedCount = exercises.filter(e => e.code).length;
+                terminalOutput.appendChild(document.createTextNode(`Auto-linked ${matchedCount} previously uploaded Java files.\n`));
+            }
+
+            if (exercises.length > 0) {
+                currentExerciseIndex = 0;
+                loadExercise(0);
+                
+                // Show controls
+                document.querySelectorAll('.btn-nav').forEach(el => el.style.display = 'inline-block');
+                exerciseCounter.style.display = 'inline-block';
+            }
+        }
+
+        function loadExercise(index) {
+            if (index < 0 || index >= exercises.length) return;
+            
+            const ex = exercises[index];
+            snippetTitle.value = ex.title;
+            snippetDesc.value = ex.description;
+            
+            // Auto-reset terminal when loading an exercise
+            terminalOutput.textContent = 'Ready...';
+            terminalInput.value = '';
+            
+            // LOAD CODE
+            if (ex.code) {
+                codeInput.value = ex.code;
+            } else {
+                codeInput.value = `import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Code for ${ex.title}\n        System.out.println("Hello, World!");\n    }\n}`;
+            }
+            updateHighlight();
+            autoResizeDesc();
+            
+            exerciseCounter.textContent = `${index + 1} / ${exercises.length}`;
+            btnPrev.disabled = index === 0;
+            btnNext.disabled = index === exercises.length - 1;
+            
+            // --- AUTO RUN CHECK ---
+            if (autoRunToggle.checked) {
+                // Short delay to allow UI to settle
+                setTimeout(runCode, 50);
+            }
+        }
+
+        function nextExercise() {
+            if (currentExerciseIndex < exercises.length - 1) {
+                saveCurrentExerciseState(); // Save before switch
+                currentExerciseIndex++;
+                loadExercise(currentExerciseIndex);
+            }
+        }
+
+        function prevExercise() {
+            if (currentExerciseIndex > 0) {
+                saveCurrentExerciseState(); // Save before switch
+                currentExerciseIndex--;
+                loadExercise(currentExerciseIndex);
+            }
+        }
+
+
+        // --- Image/PDF Export Logic (Existing) ---
+        function createTempDiv(element) {
+            const div = document.createElement('div');
+            const style = window.getComputedStyle(element);
+            div.style.fontFamily = style.fontFamily;
+            div.style.fontSize = style.fontSize;
+            div.style.fontWeight = style.fontWeight;
+            div.style.color = style.color;
+            div.style.lineHeight = style.lineHeight;
+            div.style.background = 'transparent';
+            div.style.width = '100%';
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordBreak = 'break-word';
+            div.style.padding = style.padding || '0';
+            div.style.marginTop = style.marginTop;
+            div.style.marginBottom = style.marginBottom;
+            div.innerText = element.value;
+            return div;
+        }
+
+        function downloadImage() {
+            captureContainer().then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'code-snapshot.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        async function downloadPDF() {
+            try {
+                const canvas = await captureContainer();
+                
+                const { PDFDocument } = PDFLib;
+                let pdfDoc;
+
+                const uploadedFile = pdfUploadInput.files[0];
+
+                if (uploadedFile) {
+                    const existingPdfBytes = await uploadedFile.arrayBuffer();
+                    pdfDoc = await PDFDocument.load(existingPdfBytes);
+                } else {
+                    pdfDoc = await PDFDocument.create();
+                }
+
+                const pngUrl = canvas.toDataURL('image/png');
+                const pngImageBytes = await fetch(pngUrl).then((res) => res.arrayBuffer());
+                const pngImage = await pdfDoc.embedPng(pngImageBytes);
+
+                const page = pdfDoc.addPage([canvas.width, canvas.height]);
+                page.drawImage(pngImage, {
+                    x: 0,
+                    y: 0,
+                    width: canvas.width,
+                    height: canvas.height,
+                });
+
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = uploadedFile ? 'merged-code-snapshot.pdf' : 'code-snapshot.pdf';
+                link.click();
+
+            } catch (err) {
+                console.error("PDF Error:", err);
+                alert("Error generating PDF. See console.");
+            }
+        }
+        
+        // --- NEW: REPORT / ACCUMULATE LOGIC ---
+        
+        async function addToReport() {
+            try {
+                const canvas = await captureContainer();
+                const imageData = canvas.toDataURL('image/png');
+                
+                reportImages.push({
+                    data: imageData,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                
+                updateReportCounter();
+                showToast(`Added! (${reportImages.length} pages)`);
+                return true; // Success
+                
+            } catch (err) {
+                console.error("Capture failed:", err);
+                alert("Failed to snapshot the current exercise.");
+                return false; // Failure
+            }
+        }
+        
+        function updateReportCounter() {
+            btnFullReport.textContent = `Download Full Report (${reportImages.length})`;
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = "show";
+            setTimeout(function() {
+                toast.className = toast.className.replace("show", "");
+            }, 3000);
+        }
+
+        async function downloadFullReport() {
+            if (reportImages.length === 0) {
+                alert("No pages in report! Use 'Add to Report' first.");
+                return;
+            }
+            
+            try {
+                const { PDFDocument } = PDFLib;
+                const pdfDoc = await PDFDocument.create();
+                
+                for (let i = 0; i < reportImages.length; i++) {
+                    const imgData = reportImages[i];
+                    
+                    // Embed PNG
+                    const pngImageBytes = await fetch(imgData.data).then(res => res.arrayBuffer());
+                    const pngImage = await pdfDoc.embedPng(pngImageBytes);
+                    
+                    // Add Page matched to image size
+                    const page = pdfDoc.addPage([imgData.width, imgData.height]);
+                    
+                    page.drawImage(pngImage, {
+                        x: 0,
+                        y: 0,
+                        width: imgData.width,
+                        height: imgData.height,
+                    });
+                }
+                
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'full-java-report.pdf';
+                link.click();
+                
+            } catch (err) {
+                console.error("Report Generation Error:", err);
+                alert("Error building Report PDF.");
+            }
+        }
+
+        // Refactored Capture Logic to remove duplicates
+        async function captureContainer() {
+            const container = document.getElementById('capture-container');
+            const originalCodeHeight = codeInput.style.height;
+            const originalDisplayHeight = codeDisplay.style.height;
+            const originalTermHeight = terminalWrapper.style.height;
+            const originalTermOverflow = terminalWrapper.style.overflowY;
+            const originalDescHeight = snippetDesc.style.height;
+            
+            // Re-select title/header elements since DOM structure changed
+            const titleEl = document.getElementById('snippet-title');
+            const descEl = document.getElementById('snippet-desc');
+            const headerEl = document.querySelector('.snippet-header');
+            const navControlsEl = document.querySelector('.nav-controls'); // Select nav controls
+
+            const originalTitleDisplay = titleEl.style.display;
+            const originalDescDisplay = descEl.style.display;
+            const originalHeaderDisplay = headerEl.style.display;
+            const originalNavDisplay = navControlsEl ? navControlsEl.style.display : ''; // Save state
+
+            // Expand
+            const fullCodeHeight = codeInput.scrollHeight + "px";
+            codeInput.style.height = fullCodeHeight;
+            codeDisplay.style.height = fullCodeHeight;
+            snippetDesc.style.height = snippetDesc.scrollHeight + "px";
+            terminalWrapper.style.height = "auto"; 
+            terminalWrapper.style.overflowY = "visible";
+
+            // Hide empty
+            const isTitleEmpty = titleEl.value.trim() === '';
+            const isDescEmpty = descEl.value.trim() === '';
+            if (isTitleEmpty) titleEl.style.display = 'none';
+            if (isDescEmpty) descEl.style.display = 'none';
+            if (isTitleEmpty && isDescEmpty) headerEl.style.display = 'none';
+
+            // Hide Nav Controls for screenshot
+            if (navControlsEl) navControlsEl.style.display = 'none';
+
+            let tempDescDiv = null;
+            if (!isDescEmpty) {
+                tempDescDiv = createTempDiv(snippetDesc);
+                snippetDesc.parentNode.insertBefore(tempDescDiv, snippetDesc);
+                snippetDesc.style.display = 'none';
+            }
+
+            const canvas = await html2canvas(container, {
+                scale: 2, 
+                backgroundColor: null, 
+                useCORS: true,
+                logging: false,
+                windowHeight: container.scrollHeight + 200 
+            });
+
+            // Restore
+            codeInput.style.height = originalCodeHeight;
+            codeDisplay.style.height = originalDisplayHeight;
+            terminalWrapper.style.height = originalTermHeight;
+            terminalWrapper.style.overflowY = originalTermOverflow;
+            snippetDesc.style.height = originalDescHeight;
+            titleEl.style.display = originalTitleDisplay;
+            descEl.style.display = originalDescDisplay;
+            headerEl.style.display = originalHeaderDisplay;
+            
+            if (navControlsEl) navControlsEl.style.display = originalNavDisplay; // Restore
+
+            if (tempDescDiv) tempDescDiv.remove();
+            
+            return canvas;
+        }
+    </script>
+</body>
+</html>
