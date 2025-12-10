@@ -167,20 +167,27 @@
             transition: background-color 0.3s ease;
         }
 
-        /* We stack textarea and pre for editing + highlighting */
+        /* SHARED STYLES FOR INPUT AND DISPLAY (Critical for Alignment) */
         #code-input, #code-display {
             width: 100%;
             height: 300px;
-            margin: 0;
-            padding: 20px;
-            border: none;
-            /* Font stack supporting Unicode symbols */
-            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Segoe UI Symbol', 'Noto Color Emoji', monospace;
-            font-size: 14px;
-            line-height: 1.6; /* Slightly increased for readability */
-            box-sizing: border-box;
-            white-space: pre;
+            
+            /* EXPLICIT BOX MODEL */
+            padding: 20px !important;
+            margin: 0 !important;
+            border: none !important;
+            box-sizing: border-box !important;
+
+            /* FONTS & SPACING */
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Segoe UI Symbol', 'Noto Color Emoji', monospace !important;
+            font-size: 14px !important;
+            line-height: 24px !important; /* Fixed Line Height */
+            letter-spacing: 0px !important;
+            tab-size: 4 !important;
+
+            white-space: pre !important;
             color: var(--theme-fg); 
+            overflow: auto; /* Both scrollable, but we hide one's scrollbar via logic or CSS */
         }
 
         #code-input {
@@ -199,10 +206,29 @@
             position: relative;
             z-index: 1;
             pointer-events: none;
-            overflow: hidden;
+            /* Hide scrollbars on display so they don't double up visually */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        
+        #code-display::-webkit-scrollbar { 
+            display: none; 
         }
 
         /* --- DYNAMIC SYNTAX HIGHLIGHTING OVERRIDES --- */
+        
+        /* Force Inner Code Element to behave */
+        #code-display code {
+            font-family: inherit !important;
+            font-size: inherit !important;
+            line-height: inherit !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            white-space: inherit !important;
+            display: block !important; /* Ensures it fills container */
+        }
+
         /* Override PrismJS Default Backgrounds to Transparent */
         code[class*="language-"],
         pre[class*="language-"] {
@@ -374,19 +400,41 @@
             outline: none;
         }
 
-        /* ARGS INPUT STYLE */
+        /* ARGS INPUT STYLE - Button-like transition */
         #args-input {
             background-color: var(--theme-bg-storm);
             color: var(--theme-fg);
             border: 1px solid var(--theme-comment);
-            padding: 10px;
+            padding: 10px 15px;
             border-radius: 5px;
             outline: none;
-            width: 180px;
+            width: 60px; /* Looks like a small button by default */
             font-family: inherit;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
         }
+        
         #args-input::placeholder {
+            color: var(--theme-fg);
+            opacity: 1; /* Make placeholder look like button text */
+        }
+
+        /* Expanded State (Focus or Has Content) */
+        #args-input:focus,
+        #args-input:not(:placeholder-shown) {
+            width: 220px; /* Expand for typing */
+            text-align: left;
+            cursor: text;
+            border-color: var(--theme-cyan);
+            font-weight: normal;
+        }
+        
+        #args-input:focus::placeholder {
             color: rgba(255, 255, 255, 0.4);
+            font-weight: normal;
         }
         
         /* AUTO RUN TOGGLE STYLE */
@@ -662,7 +710,7 @@ public class Main {
         <button class="btn-paste" onclick="pasteCode()">Paste</button>
         
         <!-- ARGS INPUT -->
-        <input type="text" id="args-input" placeholder="Args (e.g. 10 &quot;test&quot;)">
+        <input type="text" id="args-input" placeholder="Args" title="Enter command line arguments (e.g. 10 &quot;test&quot;)">
 
         <button class="btn-run" onclick="runCode()">Run</button>
         
