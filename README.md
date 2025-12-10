@@ -2,6 +2,7 @@
 Program to take automatic screenshots of code and its results for my classes.
 
 The webpage uses the js for the backend.
+
 !!ALL CODE INPUTED WILL RUN WITHOUT RESTRICTION IN THE BACKEND, BE CAREFUL!!
 
 Once set up you can select the theme to change the theme.
